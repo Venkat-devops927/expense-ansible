@@ -14,5 +14,4 @@
   - name: user add expense
     ansible.builtin.user:
       name: expense
-      state: present
   
