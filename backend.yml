@@ -1,6 +1,9 @@
 - name: configure backend
   hosts: backend
   become: yes
+  vars:
+  - mysql_root_password: ExpenseApp@1
+  - login_host: mysql.aryan927.shop
   tasks:
     - name: disable default nodejs
       ansible.builtin.command: dnf module disable nodejs -y
@@ -10,8 +13,11 @@
 
     - name: install nodejs
       ansible.builtin.package:
-        name: nodejs
+        name: {{ item }}
         state: present
+      loop:
+      - nodejs
+      - mysql
 
     - name: create expense user
       ansible.builtin.user:
@@ -33,5 +39,37 @@
         src: /tmp/backend.zip
         dest: /app
         remote_src: yes
+    - name: install dependencies
+      ansible.builtin.command: npm install
+      args:
+        chdir: /app
+      
+    - name: copy backend service
+      ansible.builtin.copy:
+        src: backend.service
+        dest: /etc/systemd/system/backend.service
+
+    - name: ansible to install pymysql
+      ansible.builtin.pip:
+        name:
+        - pymysql
+        - cryptography
+        executable: pip3.9
+
+    - name: import mysql data
+      community.mysql.mysql.db:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        login_host: "{{ login_host }}"
+        target: /app/schema/backend.sql
+        name: all
+        state: import
+
+    - name: daemon reload
+      ansible.builtin.systemd.service:
+        daemon_reload: true
+        state: restarted
+        name: backend
+
 
     
